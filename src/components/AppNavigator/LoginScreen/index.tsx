@@ -1,11 +1,9 @@
 import React, {useEffect, useState} from 'react';
 import {ActivityIndicator} from 'react-native';
-import axios from 'axios';
 
-import {LOGIN_API} from '../../../shared/api';
-import {useStore} from '../../../store';
 import {appColors} from '../../../shared/styles/variables';
 import {OutlinedInput} from '../../../shared/components/OutlinedInput';
+import {useApi} from '../../../shared/hooks/useApi';
 import {
   Toast,
   ToastText,
@@ -18,27 +16,24 @@ import {
 } from './styles';
 
 export const LoginScreen: React.FC = () => {
-  const {
-    actions: {setToken},
-  } = useStore();
+  const {loginRequest, responseLoginErr, isLoginLoading, setResponseLoginErr} =
+    useApi();
 
-  const [username, onChangeUsername] = useState<string>('');
-  const [password, onChangePassword] = useState<string>('');
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [username, onChangeUsername] = useState<string>('John.doe@nfq.lt');
+  const [password, onChangePassword] = useState<string>('Johndoe');
   const [validationErr, setValidationErr] = useState<string>('');
-  const [responseErr, setResponseErr] = useState<string>('');
 
   useEffect(() => {
     // removes Toast displaying
-    if (responseErr) {
-      let timer = setTimeout(() => setResponseErr(''), 3000);
+    if (responseLoginErr) {
+      let timer = setTimeout(() => setResponseLoginErr(''), 3000);
       return () => {
         clearTimeout(timer);
       };
     }
-  }, [responseErr]);
+  }, [responseLoginErr, setResponseLoginErr]);
 
-  const onSubmit = () => {
+  const onSubmit = async () => {
     if (!username || !password) {
       setValidationErr('This field is required');
       return;
@@ -46,30 +41,7 @@ export const LoginScreen: React.FC = () => {
       setValidationErr('');
     }
 
-    setIsLoading(true);
-
-    const requestOptions = {
-      headers: {'Content-Type': 'application/json'},
-      // body: JSON.stringify({
-      //   username,
-      //   password,
-      // }),
-    };
-
-    axios
-      .get(LOGIN_API, requestOptions)
-      .then(res => {
-        if (res.status === 200) {
-          (() => setToken(res.data.token))();
-          // (() => setToken(JSON.parse((res as any)._bodyText).token))();
-        } else {
-          setResponseErr('Wrong username or password');
-        }
-      })
-      .catch(() => setResponseErr('Wrong username or password'))
-      .finally(() => {
-        setIsLoading(false);
-      });
+    await loginRequest({username, password});
   };
 
   const isUsernameErr = !!validationErr && !username;
@@ -77,8 +49,8 @@ export const LoginScreen: React.FC = () => {
 
   return (
     <>
-      <Toast isVisible={!!responseErr}>
-        <ToastText>{responseErr}</ToastText>
+      <Toast isVisible={!!responseLoginErr}>
+        <ToastText>{responseLoginErr}</ToastText>
       </Toast>
       <Container>
         <Logo source={require('../../../../assets/imgs/logo.jpeg')} />
@@ -97,10 +69,10 @@ export const LoginScreen: React.FC = () => {
           errorText={validationErr}
         />
         <Wrapper>
-          <PressableContainer onPress={onSubmit} disabled={isLoading}>
+          <PressableContainer onPress={onSubmit} disabled={isLoginLoading}>
             {({pressed}) => (
               <StyledView pressed={pressed}>
-                {isLoading ? (
+                {isLoginLoading ? (
                   <ActivityIndicator color={appColors.white} />
                 ) : (
                   <ButtonText>Submit</ButtonText>
